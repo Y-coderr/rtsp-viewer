@@ -1,26 +1,45 @@
 import { useEffect, useRef, useState } from 'react';
-import PropTypes from 'prop-types';
 import { Play, Pause, X, Maximize2, Volume2, VolumeX } from 'lucide-react';
+import { formatRtspUrlForDisplay, getWebCompatibleStreamUrl, terminateStreamSession } from '../utils/rtspUtils';
 
 function StreamPlayer({ stream, onRemove, onTogglePlayPause, onClick, isSingleView = false }) {
   const videoRef = useRef(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [muted, setMuted] = useState(true);
+  const [sessionId, setSessionId] = useState(null);
+  const [webStreamUrl, setWebStreamUrl] = useState(null);
 
   useEffect(() => {
-    // In a real implementation, you would connect to the RTSP stream here
-    // This is just a placeholder for the frontend UI
-    // In a real app, you'd need a backend server that can handle RTSP streams
-    // and convert them to a format that browsers can play (like HLS or WebRTC)
+    // Connect to the RTSP stream via our backend service
+    async function connectToStream() {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Convert RTSP to web-compatible format
+        const result = await getWebCompatibleStreamUrl(stream.url);
+        setWebStreamUrl(result.streamUrl);
+        setSessionId(result.sessionId);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error connecting to stream:", err);
+        setError("Failed to connect to stream: " + err.message);
+        setLoading(false);
+      }
+    }
     
-    const timer = setTimeout(() => {
-      setLoading(false);
-      // For demo purposes, we'll simulate a successful connection
-      // In a real app, you would handle errors from your streaming service
-    }, 1500);
+    connectToStream();
     
-    return () => clearTimeout(timer);
+    // Clean up when component unmounts
+    return () => {
+      // Terminate the stream session if it exists
+      if (sessionId) {
+        terminateStreamSession(sessionId).catch(err => {
+          console.error("Error terminating stream session:", err);
+        });
+      }
+    };
   }, [stream.url]);
 
   // Handle play/pause state
@@ -81,13 +100,14 @@ function StreamPlayer({ stream, onRemove, onTogglePlayPause, onClick, isSingleVi
             autoPlay={stream.isPlaying}
             playsInline
           >
-            <source src="/placeholder-video.mp4" type="video/mp4" />
+            {/* Use the web-compatible stream URL from our utility function */}
+            <source src={webStreamUrl || "/placeholder-video.mp4"} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           
           <div className="stream-overlay">
             <div className="stream-info">
-              <span className="stream-url">{stream.url}</span>
+              <span className="stream-url">{formatRtspUrlForDisplay(stream.url, 40)}</span>
             </div>
             
             <div className="stream-controls-overlay">
@@ -129,17 +149,5 @@ function StreamPlayer({ stream, onRemove, onTogglePlayPause, onClick, isSingleVi
     </div>
   );
 }
-
-StreamPlayer.propTypes = {
-  stream: PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    url: PropTypes.string.isRequired,
-    isPlaying: PropTypes.bool.isRequired
-  }).isRequired,
-  onRemove: PropTypes.func.isRequired,
-  onTogglePlayPause: PropTypes.func.isRequired,
-  onClick: PropTypes.func.isRequired,
-  isSingleView: PropTypes.bool
-};
 
 export default StreamPlayer;

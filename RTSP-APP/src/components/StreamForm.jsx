@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
+import { validateRtspUrl } from '../utils/rtspUtils';
 
 function StreamForm({ onAddStream }) {
   const [streamUrl, setStreamUrl] = useState('');
@@ -14,7 +15,8 @@ function StreamForm({ onAddStream }) {
       return;
     }
     
-    if (!streamUrl.startsWith('rtsp://')) {
+    // Use validateRtspUrl utility function for validation
+    if (!validateRtspUrl(streamUrl)) {
       setError('URL must be a valid RTSP stream starting with rtsp://');
       return;
     }

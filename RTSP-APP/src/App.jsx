@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import StreamForm from './components/StreamForm';
 import StreamGrid from './components/StreamGrid';
+import { validateRtspUrl, terminateStreamSession } from './utils/rtspUtils';
 import './App.css';
 
 function App() {
@@ -16,7 +17,17 @@ function App() {
   };
 
   const removeStream = (id) => {
+    // Find the stream to remove
+    const streamToRemove = streams.find(stream => stream.id === id);
+    
+    // Remove the stream from the array
     setStreams(streams.filter(stream => stream.id !== id));
+    
+    // Clean up any resources associated with the stream
+    if (streamToRemove && streamToRemove.sessionId) {
+      terminateStreamSession(streamToRemove.sessionId)
+        .catch(err => console.error("Error terminating stream:", err));
+    }
   };
 
   const togglePlayPause = (id) => {
